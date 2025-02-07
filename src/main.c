@@ -1,7 +1,7 @@
 
 #include <pebble.h>
-#include "fctx/fctx.h"
-#include "fctx/ffont.h"
+#include <pebble-fctx/fctx.h>
+#include <pebble-fctx/ffont.h>
 
 // --------------------------------------------------------------------------
 // Types and global variables.
@@ -76,7 +76,7 @@ void on_layer_update(Layer* layer, GContext* ctx) {
 
     fctx_begin_fill(&fctx);
     fctx_set_fill_color(&fctx, g_palette[MINUTE_TEXT_COLOR]);
-    fctx_set_text_size(&fctx, g_font, minute_text_size);
+    fctx_set_text_em_height(&fctx, g_font, minute_text_size);
     for (int m = 0; m < 60; m += 5) {
         snprintf(minute_string, sizeof minute_string, "%02d", m);
         int32_t minute_angle = m * TRIG_MAX_ANGLE / 60;
@@ -149,7 +149,7 @@ void on_layer_update(Layer* layer, GContext* ctx) {
     fctx_set_fill_color(&fctx, g_palette[HOUR_TEXT_COLOR]);
     fctx_set_offset(&fctx, anchor_point);
     fctx_set_rotation(&fctx, text_rotation);
-    fctx_set_text_size(&fctx, g_font, hour_text_size);
+    fctx_set_text_em_height(&fctx, g_font, hour_text_size);
     fctx_draw_string(&fctx, hour_string, g_font, text_align, FTextAnchorMiddle);
     fctx_end_fill(&fctx);
 
@@ -222,7 +222,7 @@ static void deinit() {
     tick_timer_service_unsubscribe();
     window_destroy(g_window);
     layer_destroy(g_layer);
-	ffont_destroy(g_font);
+    ffont_destroy(g_font);
 }
 
 // --------------------------------------------------------------------------

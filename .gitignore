@@ -5,3 +5,5 @@ build
 # Ignore waf lock file
 .lock-waf*
 .clang_complete
+
+node_modules/

@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "author": "JR Mobley",
+  "private": true,
+  "dependencies": {
+    "pebble-fctx": "^1.6.2"
+  },
+  "keywords": [
+    "pebble-app"
+  ],
+  "pebble": {
+    "sdkVersion": "3",
+    "resources": {
+      "media": [
+        {
+          "type": "raw",
+          "name": "DIN_CONDENSED_FFONT",
+          "file": "din-condensed.ffont"
+        }
+      ]
+    },
+    "projectType": "native",
+    "uuid": "e3b3f17e-9ec4-4d81-a180-c7bba21a2cc1",
+    "messageKeys": {},
+    "enableMultiJS": false,
+    "displayName": "fctx demo",
+    "watchapp": {
+      "onlyShownOnCommunication": false,
+      "hiddenApp": false,
+      "watchface": true
+    },
+    "targetPlatforms": [
+      "aplite",
+      "basalt",
+      "chalk",
+      "diorite",
+      "emery"
+    ],
+    "capabilities": []
+  },
+  "name": "fctx demo"
+}
