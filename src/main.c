@@ -23,10 +23,11 @@ FFont* g_font;
 struct tm g_local_time;
 GColor g_palette[PALETTE_SIZE];
 
-static const char* kHourString[12] = {
-    "TWELVE", "ONE", "TWO", "THREE", "FOUR", "FIVE",
-    "SIX", "SEVEN", "EIGHT", "NINE", "TEN", "ELEVEN",
-};
+static char minute_hand_string[7];
+static char hour_hand_string[4];
+
+#define TEXT_SIZE 23
+#define HAND_SIZE 10
 
 #if defined(PBL_ROUND)
 #define BEZEL_INSET 6
@@ -47,6 +48,61 @@ static inline FPoint clockToCartesian(FPoint center, fixed_t radius, int32_t ang
     return pt;
 }
 
+static const char* monthStrings[12] = {
+    "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
+};
+
+static const char* weekdayStrings[7] = {
+    "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"
+};
+
+static inline void update_time() {
+  snprintf(minute_hand_string, sizeof(minute_hand_string), "%s %d", monthStrings[g_local_time.tm_mon], g_local_time.tm_mday);
+  snprintf(hour_hand_string, sizeof(hour_hand_string), "%s", weekdayStrings[g_local_time.tm_wday]);
+}
+
+static void draw_hand(FContext* fctx, GColor color, FPoint center, fixed_t radius, int32_t angle, fixed_t hand_size, fixed_t ctrl) {
+    fctx_begin_fill(fctx);
+    fctx_set_fill_color(fctx, color);
+    fctx_set_offset(fctx, center);
+    fctx_set_scale(fctx, FPointOne, FPointOne);
+    fctx_set_rotation(fctx, angle);
+
+    // FPoints are created with arguments (X, Y).
+    // X=0, Y=0 is the very middle of the face.
+
+    // This creates the outermost tip of the hand, with counter-clockwise curve.
+    fctx_move_to (fctx, FPoint(0, - radius));
+    fctx_curve_to(fctx, FPoint(0, - radius),
+                        FPoint(hand_size, 1 * hand_size - radius),
+                        FPoint(hand_size, 3 * hand_size - radius));
+
+    // If we're drawing a hand at the 12 o'clock position, this draws the left-most line.
+    fctx_line_to (fctx, FPoint(hand_size, 0));
+
+    // Counter-clockwise curve around the middle of the face.
+    fctx_curve_to(fctx, FPoint(hand_size, ctrl),
+                        FPoint(ctrl, hand_size),
+                        FPoint(0, hand_size));
+    fctx_curve_to(fctx, FPoint(-ctrl, hand_size),
+                        FPoint(-hand_size, ctrl),
+                        FPoint(-hand_size, 0));
+
+    // This draws the right-most line, and completes the curve at the tip.
+    fctx_line_to (fctx, FPoint(-hand_size, 3 * hand_size - radius));
+    fctx_curve_to(fctx, FPoint(-hand_size, 1 * hand_size - radius),
+                        FPoint(0, - radius),
+                        FPoint(0, - radius));
+
+    fctx_end_fill(fctx);
+}
+
+static inline int32_t angle_diff(int32_t a, int32_t b) {
+    int32_t diff = abs(a - b) % TRIG_MAX_ANGLE;
+    return diff > TRIG_MAX_ANGLE / 2 ? TRIG_MAX_ANGLE - diff : diff;
+}
+
 // --------------------------------------------------------------------------
 // The main drawing function.
 // --------------------------------------------------------------------------
@@ -57,101 +113,67 @@ void on_layer_update(Layer* layer, GContext* ctx) {
     FPoint center = FPointI(bounds.size.w / 2, bounds.size.h / 2);
     fixed_t safe_radius = INT_TO_FIXED(bounds.size.w / 2 - BEZEL_INSET);
 
-    int minute_text_size = 12;
-    int hour_text_size = 14;
-    fixed_t minute_text_radius = safe_radius;
-    fixed_t ring_outer_radius = minute_text_radius - INT_TO_FIXED(minute_text_size + 0);
-    fixed_t ring_inner_radius = ring_outer_radius - INT_TO_FIXED(1);
-    fixed_t minute_hand_radius = ring_inner_radius - INT_TO_FIXED(1);
+    fixed_t minute_hand_radius = safe_radius;
+    fixed_t hour_hand_radius = safe_radius - INT_TO_FIXED(22);
 
-    const char* hour_string = kHourString[g_local_time.tm_hour % 12];
-    char minute_string[3];
-    int32_t minute_angle = g_local_time.tm_min * TRIG_MAX_ANGLE / 60;
+    int32_t minute_angle = g_local_time.tm_min * TRIG_MAX_ANGLE / 60.0;
+    int32_t hour_angle = ((g_local_time.tm_hour % 12) + (g_local_time.tm_min / 60.0)) * TRIG_MAX_ANGLE / 12.0;
 
     FContext fctx;
     fctx_init_context(&fctx, ctx);
     fctx_set_color_bias(&fctx, 0);
 
-    /* Draw the minute marks. */
+    /* Draw the hour hand. */
 
-    fctx_begin_fill(&fctx);
-    fctx_set_fill_color(&fctx, g_palette[MINUTE_TEXT_COLOR]);
-    fctx_set_text_em_height(&fctx, g_font, minute_text_size);
-    for (int m = 0; m < 60; m += 5) {
-        snprintf(minute_string, sizeof minute_string, "%02d", m);
-        int32_t minute_angle = m * TRIG_MAX_ANGLE / 60;
-        int32_t text_rotation;
-        FTextAnchor text_anchor;
-        if (m > 15 && m < 45) {
-            text_rotation = minute_angle + TRIG_MAX_ANGLE / 2;
-            text_anchor = FTextAnchorBaseline;
-        } else {
-            text_rotation = minute_angle;
-            text_anchor = FTextAnchorTop;
-        }
-        FPoint p = clockToCartesian(center, minute_text_radius, minute_angle);
-        fctx_set_rotation(&fctx, text_rotation);
-        fctx_set_offset(&fctx, p);
-        fctx_draw_string(&fctx, minute_string, g_font, GTextAlignmentCenter, text_anchor);
-    }
-    fctx_end_fill(&fctx);
-
-    /* Draw a thin ring. */
-    fctx_begin_fill(&fctx);
-    fctx_set_fill_color(&fctx, g_palette[RING_COLOR]);
-    fctx_plot_circle(&fctx, &center, ring_outer_radius);
-    fctx_plot_circle(&fctx, &center, ring_inner_radius);
-    fctx_end_fill(&fctx);
+    fixed_t hand_size = INT_TO_FIXED(HAND_SIZE);
+    fixed_t ctrl = hand_size * 3 / 4;
+    draw_hand(&fctx, g_palette[MINUTE_HAND_COLOR], center, hour_hand_radius, hour_angle, hand_size, ctrl);
 
     /* Draw the minute hand. */
+    draw_hand(&fctx, g_palette[MINUTE_HAND_COLOR], center, minute_hand_radius, minute_angle, hand_size, ctrl);
 
-    fixed_t hand_size = INT_TO_FIXED(7);
-    fixed_t ctrl = hand_size * 3 / 4;
+    /* Draw the string onto the minute hand. */
 
-    fctx_begin_fill(&fctx);
-    fctx_set_fill_color(&fctx, g_palette[MINUTE_HAND_COLOR]);
-    fctx_set_offset(&fctx, center);
-    fctx_set_scale(&fctx, FPointOne, FPointOne);
-    fctx_set_rotation(&fctx, minute_angle);
-    fctx_move_to (&fctx, FPoint(0, - minute_hand_radius));
-    fctx_curve_to(&fctx, FPoint(0, - minute_hand_radius),
-                         FPoint(hand_size, 1 * hand_size - minute_hand_radius),
-                         FPoint(hand_size, 3 * hand_size - minute_hand_radius));
-    fctx_line_to (&fctx, FPoint(hand_size, 0));
-    fctx_curve_to(&fctx, FPoint(hand_size, ctrl),
-                         FPoint(ctrl, hand_size),
-                         FPoint(0, hand_size));
-    fctx_curve_to(&fctx, FPoint(-ctrl, hand_size),
-                         FPoint(-hand_size, ctrl),
-                         FPoint(-hand_size, 0));
-    fctx_line_to (&fctx, FPoint(-hand_size, 3 * hand_size - minute_hand_radius));
-    fctx_curve_to(&fctx, FPoint(-hand_size, 1 * hand_size - minute_hand_radius),
-                         FPoint(0, - minute_hand_radius),
-                         FPoint(0, - minute_hand_radius));
-    fctx_end_fill(&fctx);
-
-    /* Draw the hour string onto the minute hand. */
-
-    fixed_t text_margin = INT_TO_FIXED(2);
-    fixed_t anchor_radius = text_margin;
-    FPoint anchor_point = clockToCartesian(center, anchor_radius, minute_angle);
+    FPoint anchor_point = clockToCartesian(center, minute_hand_radius - (2 * hand_size), minute_angle);
     int32_t text_rotation;
     GTextAlignment text_align;
     if (g_local_time.tm_min < 30) {
         text_rotation = minute_angle - TRIG_MAX_ANGLE / 4;
-        text_align = GTextAlignmentLeft;
+        text_align = GTextAlignmentRight;
     } else {
         text_rotation = minute_angle + TRIG_MAX_ANGLE / 4;
-        text_align = GTextAlignmentRight;
+        text_align = GTextAlignmentLeft;
     }
 
     fctx_begin_fill(&fctx);
     fctx_set_fill_color(&fctx, g_palette[HOUR_TEXT_COLOR]);
     fctx_set_offset(&fctx, anchor_point);
     fctx_set_rotation(&fctx, text_rotation);
-    fctx_set_text_em_height(&fctx, g_font, hour_text_size);
-    fctx_draw_string(&fctx, hour_string, g_font, text_align, FTextAnchorMiddle);
+    fctx_set_text_em_height(&fctx, g_font, TEXT_SIZE);
+    fctx_draw_string(&fctx, minute_hand_string, g_font, text_align, FTextAnchorMiddle);
     fctx_end_fill(&fctx);
+
+    /* Draw the string onto the hour hand. */
+    // APP_LOG(APP_LOG_LEVEL_DEBUG, "hour: %d, minute: %d, diff: %d, diff check: %d", hour_angle, minute_angle, angle_diff(hour_angle, minute_angle), DEG_TO_TRIGANGLE(15));
+
+    if (angle_diff(hour_angle, minute_angle) > DEG_TO_TRIGANGLE(15) ) {
+        anchor_point = clockToCartesian(center, hour_hand_radius - (2 * hand_size), hour_angle);
+        if ((g_local_time.tm_hour % 12) < 6) {
+            text_rotation = hour_angle - TRIG_MAX_ANGLE / 4;
+            text_align = GTextAlignmentRight;
+        } else {
+            text_rotation = hour_angle + TRIG_MAX_ANGLE / 4;
+            text_align = GTextAlignmentLeft;
+        }
+
+        fctx_begin_fill(&fctx);
+        fctx_set_fill_color(&fctx, g_palette[HOUR_TEXT_COLOR]);
+        fctx_set_offset(&fctx, anchor_point);
+        fctx_set_rotation(&fctx, text_rotation);
+        fctx_set_text_em_height(&fctx, g_font, TEXT_SIZE);
+        fctx_draw_string(&fctx, hour_hand_string, g_font, text_align, FTextAnchorMiddle);
+        fctx_end_fill(&fctx);
+    }
 
     fctx_deinit_context(&fctx);
 }
@@ -160,24 +182,9 @@ void on_layer_update(Layer* layer, GContext* ctx) {
 // System event handlers.
 // --------------------------------------------------------------------------
 
-
-void on_battery_state(BatteryChargeState charge) {
-
-    if (charge.is_charging) {
-        g_palette[RING_COLOR] = PBL_IF_COLOR_ELSE(GColorElectricBlue, GColorWhite);
-    } else if (charge.charge_percent <= 20) {
-        g_palette[RING_COLOR] = PBL_IF_COLOR_ELSE(GColorOrange, GColorDarkGray);
-    } else if (charge.charge_percent <= 50) {
-        g_palette[RING_COLOR] = PBL_IF_COLOR_ELSE(GColorYellow, GColorLightGray);
-    } else {
-        g_palette[RING_COLOR] = PBL_IF_COLOR_ELSE(GColorScreaminGreen, GColorWhite);
-    }
-
-    layer_mark_dirty(g_layer);
-}
-
 void on_tick_timer(struct tm* tick_time, TimeUnits units_changed) {
     g_local_time = *tick_time;
+    update_time();
     layer_mark_dirty(g_layer);
 }
 
@@ -190,13 +197,12 @@ static void init() {
     setlocale(LC_ALL, "");
 
     g_palette[      BEZEL_COLOR] = GColorWhite;
-    g_palette[       FACE_COLOR] = GColorBlack;
-    g_palette[MINUTE_TEXT_COLOR] = GColorWhite;
-    g_palette[MINUTE_HAND_COLOR] = GColorWhite;
-    g_palette[  HOUR_TEXT_COLOR] = PBL_IF_COLOR_ELSE(GColorBlack, GColorBlack);
+    g_palette[       FACE_COLOR] = GColorWhite;
+    g_palette[MINUTE_HAND_COLOR] = GColorBlack;
+    g_palette[  HOUR_TEXT_COLOR] = GColorWhite;
 
     g_font = ffont_create_from_resource(RESOURCE_ID_DIN_CONDENSED_FFONT);
-    ffont_debug_log(g_font, APP_LOG_LEVEL_DEBUG);
+    // ffont_debug_log(g_font, APP_LOG_LEVEL_DEBUG);
 
     g_window = window_create();
     window_set_background_color(g_window, g_palette[FACE_COLOR]);
@@ -210,15 +216,11 @@ static void init() {
 
     time_t now = time(NULL);
     g_local_time = *localtime(&now);
-    on_battery_state(battery_state_service_peek());
 
     tick_timer_service_subscribe(MINUTE_UNIT, &on_tick_timer);
-
-    battery_state_service_subscribe(&on_battery_state);
 }
 
 static void deinit() {
-    battery_state_service_unsubscribe();
     tick_timer_service_unsubscribe();
     window_destroy(g_window);
     layer_destroy(g_layer);
