@@ -154,9 +154,9 @@ void on_layer_update(Layer* layer, GContext* ctx) {
     fctx_end_fill(&fctx);
 
     /* Draw the string onto the hour hand. */
-    // APP_LOG(APP_LOG_LEVEL_DEBUG, "hour: %d, minute: %d, diff: %d, diff check: %d", hour_angle, minute_angle, angle_diff(hour_angle, minute_angle), DEG_TO_TRIGANGLE(15));
+    // APP_LOG(APP_LOG_LEVEL_DEBUG, "hour: %d, minute: %d, diff: %d, diff check: %d", hour_angle, minute_angle, angle_diff(hour_angle, minute_angle), DEG_TO_TRIGANGLE(40));
 
-    if (angle_diff(hour_angle, minute_angle) > DEG_TO_TRIGANGLE(15) ) {
+    if (angle_diff(hour_angle, minute_angle) > DEG_TO_TRIGANGLE(40) ) {
         anchor_point = clockToCartesian(center, hour_hand_radius - (2 * hand_size), hour_angle);
         if ((g_local_time.tm_hour % 12) < 6) {
             text_rotation = hour_angle - TRIG_MAX_ANGLE / 4;
