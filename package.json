@@ -1,8 +1,8 @@
 {
   "version": "2.0.0",
   "author": "JR Mobley",
-  "private": true,
   "dependencies": {
+    "pebble-clay": "^1.0.4",
     "pebble-fctx": "^1.6.2"
   },
   "keywords": [
@@ -19,24 +19,24 @@
         }
       ]
     },
-    "projectType": "native",
     "uuid": "e3b3f17e-9ec4-4d81-a180-c7bba21a2cc1",
-    "messageKeys": {},
-    "enableMultiJS": false,
+    "messageKeys": [
+      "FACE_COLOR",
+      "MINUTE_HAND_COLOR",
+      "MINUTE_TEXT_COLOR"
+    ],
+    "enableMultiJS": true,
     "displayName": "fctx demo",
     "watchapp": {
-      "onlyShownOnCommunication": false,
-      "hiddenApp": false,
       "watchface": true
     },
     "targetPlatforms": [
-      "aplite",
-      "basalt",
-      "chalk",
-      "diorite",
-      "emery"
+      "chalk"
     ],
     "capabilities": []
   },
-  "name": "fctx demo"
+  "name": "fctx demo",
+  "devDependencies": {
+    "pebble-fctx-compiler": "^1.2.2"
+  }
 }

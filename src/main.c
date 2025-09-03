@@ -1,27 +1,16 @@
-
 #include <pebble.h>
 #include <pebble-fctx/fctx.h>
 #include <pebble-fctx/ffont.h>
+#include "settings.h"
 
 // --------------------------------------------------------------------------
 // Types and global variables.
 // --------------------------------------------------------------------------
 
-enum Palette {
-    BEZEL_COLOR,
-    FACE_COLOR,
-    RING_COLOR,
-    MINUTE_TEXT_COLOR,
-    MINUTE_HAND_COLOR,
-    HOUR_TEXT_COLOR,
-    PALETTE_SIZE
-};
-
 Window* g_window;
 Layer* g_layer;
 FFont* g_font;
 struct tm g_local_time;
-GColor g_palette[PALETTE_SIZE];
 
 static char minute_hand_string[7];
 static char hour_hand_string[4];
@@ -127,10 +116,10 @@ void on_layer_update(Layer* layer, GContext* ctx) {
 
     fixed_t hand_size = INT_TO_FIXED(HAND_SIZE);
     fixed_t ctrl = hand_size * 3 / 4;
-    draw_hand(&fctx, g_palette[MINUTE_HAND_COLOR], center, hour_hand_radius, hour_angle, hand_size, ctrl);
+    draw_hand(&fctx, settings.MinuteHandColor, center, hour_hand_radius, hour_angle, hand_size, ctrl);
 
     /* Draw the minute hand. */
-    draw_hand(&fctx, g_palette[MINUTE_HAND_COLOR], center, minute_hand_radius, minute_angle, hand_size, ctrl);
+    draw_hand(&fctx, settings.MinuteHandColor, center, minute_hand_radius, minute_angle, hand_size, ctrl);
 
     /* Draw the string onto the minute hand. */
 
@@ -146,7 +135,7 @@ void on_layer_update(Layer* layer, GContext* ctx) {
     }
 
     fctx_begin_fill(&fctx);
-    fctx_set_fill_color(&fctx, g_palette[HOUR_TEXT_COLOR]);
+    fctx_set_fill_color(&fctx, settings.MinuteTextColor);
     fctx_set_offset(&fctx, anchor_point);
     fctx_set_rotation(&fctx, text_rotation);
     fctx_set_text_em_height(&fctx, g_font, TEXT_SIZE);
@@ -167,7 +156,7 @@ void on_layer_update(Layer* layer, GContext* ctx) {
         }
 
         fctx_begin_fill(&fctx);
-        fctx_set_fill_color(&fctx, g_palette[HOUR_TEXT_COLOR]);
+        fctx_set_fill_color(&fctx, settings.MinuteTextColor);
         fctx_set_offset(&fctx, anchor_point);
         fctx_set_rotation(&fctx, text_rotation);
         fctx_set_text_em_height(&fctx, g_font, TEXT_SIZE);
@@ -193,19 +182,15 @@ void on_tick_timer(struct tm* tick_time, TimeUnits units_changed) {
 // --------------------------------------------------------------------------
 
 static void init() {
-
     setlocale(LC_ALL, "");
-
-    g_palette[      BEZEL_COLOR] = GColorWhite;
-    g_palette[       FACE_COLOR] = GColorWhite;
-    g_palette[MINUTE_HAND_COLOR] = GColorBlack;
-    g_palette[  HOUR_TEXT_COLOR] = GColorWhite;
 
     g_font = ffont_create_from_resource(RESOURCE_ID_DIN_CONDENSED_FFONT);
     // ffont_debug_log(g_font, APP_LOG_LEVEL_DEBUG);
 
+    init_settings();
+
     g_window = window_create();
-    window_set_background_color(g_window, g_palette[FACE_COLOR]);
+    window_set_background_color(g_window, settings.FaceColor);
     window_stack_push(g_window, true);
     Layer* window_layer = window_get_root_layer(g_window);
     GRect window_frame = layer_get_frame(window_layer);

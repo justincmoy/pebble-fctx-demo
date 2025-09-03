@@ -1,0 +1,31 @@
+[
+  {
+    "type": "heading",
+    "defaultValue": "Example Header Item"
+  },
+  {
+    "type": "text",
+    "defaultValue": "Example text item."
+  },
+  {
+    "type": "color",
+    "messageKey": "FACE_COLOR",
+    "defaultValue": "FFFFFF",
+    "label": "Background",
+    "allowGray": true
+  },
+  {
+    "type": "color",
+    "messageKey": "MINUTE_HAND_COLOR",
+    "defaultValue": "000000",
+    "label": "Minute hand",
+    "allowGray": true
+  },
+  {
+    "type": "color",
+    "messageKey": "MINUTE_TEXT_COLOR",
+    "defaultValue": "FFFFFF",
+    "label": "Minute hand text",
+    "allowGray": true
+  }
+]
