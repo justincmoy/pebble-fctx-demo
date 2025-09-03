@@ -152,8 +152,6 @@ void on_layer_update(Layer* layer, GContext* ctx) {
     /* Draw the string onto the hour hand. */
     // APP_LOG(APP_LOG_LEVEL_DEBUG, "hour: %d, minute: %d, diff: %d, diff check: %d", hour_angle, minute_angle, angle_diff(hour_angle, minute_angle), DEG_TO_TRIGANGLE(40));
 
-    fctx_deinit_context(&fctx);
-
     if (angle_diff(hour_angle, minute_angle) > DEG_TO_TRIGANGLE(40) ) {
         anchor_point = clockToCartesian(center, hour_hand_radius - (2 * hand_size), hour_angle);
         if ((local_time.tm_hour % 12) < 6) {
@@ -173,6 +171,8 @@ void on_layer_update(Layer* layer, GContext* ctx) {
         fctx_draw_string(&fctx, text_buffer, g_font, text_align, FTextAnchorMiddle);
         fctx_end_fill(&fctx);
     }
+
+    fctx_deinit_context(&fctx);
 }
 
 // --------------------------------------------------------------------------
