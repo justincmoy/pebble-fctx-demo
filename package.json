@@ -26,7 +26,7 @@
       "MINUTE_TEXT_COLOR"
     ],
     "enableMultiJS": true,
-    "displayName": "fctx demo",
+    "displayName": "fctx-demo",
     "watchapp": {
       "watchface": true
     },
@@ -35,7 +35,7 @@
     ],
     "capabilities": []
   },
-  "name": "fctx demo",
+  "name": "fctx-demo",
   "devDependencies": {
     "pebble-fctx-compiler": "^1.2.2"
   }
