@@ -10,10 +10,8 @@
 Window* g_window;
 Layer* g_layer;
 FFont* g_font;
-struct tm g_local_time;
 
-static char minute_hand_string[7];
-static char hour_hand_string[4];
+static char text_buffer[10];
 
 #define TEXT_SIZE 23
 #define HAND_SIZE 10
@@ -37,18 +35,24 @@ static inline FPoint clockToCartesian(FPoint center, fixed_t radius, int32_t ang
     return pt;
 }
 
-static const char* monthStrings[12] = {
-    "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
-};
+static const char date_lookup[] = 
+    "JAN\0FEB\0MAR\0APR\0MAY\0JUN\0JUL\0AUG\0SEP\0OCT\0NOV\0DEC\0"
+    "SUN\0MON\0TUE\0WED\0THU\0FRI\0SAT";
 
-static const char* weekdayStrings[7] = {
-    "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"
-};
+static const char* get_month_string(int month) {
+    return &date_lookup[month * 4];
+}
 
-static inline void update_time() {
-  snprintf(minute_hand_string, sizeof(minute_hand_string), "%s %d", monthStrings[g_local_time.tm_mon], g_local_time.tm_mday);
-  snprintf(hour_hand_string, sizeof(hour_hand_string), "%s", weekdayStrings[g_local_time.tm_wday]);
+static const char* get_weekday_string(int weekday) {
+    return &date_lookup[48 + weekday * 4];
+}
+
+static inline void format_minute_text(char* buffer, const struct tm* time) {
+  snprintf(buffer, 10, "%s %d", get_month_string(time->tm_mon), time->tm_mday);
+}
+
+static inline void format_hour_text(char* buffer, const struct tm* time) {
+  snprintf(buffer, 4, "%s", get_weekday_string(time->tm_wday));
 }
 
 static void draw_hand(FContext* fctx, GColor color, FPoint center, fixed_t radius, int32_t angle, fixed_t hand_size, fixed_t ctrl) {
@@ -97,6 +101,8 @@ static inline int32_t angle_diff(int32_t a, int32_t b) {
 // --------------------------------------------------------------------------
 
 void on_layer_update(Layer* layer, GContext* ctx) {
+    time_t now = time(NULL);
+    struct tm local_time = *localtime(&now);
 
     GRect bounds = layer_get_bounds(layer);
     FPoint center = FPointI(bounds.size.w / 2, bounds.size.h / 2);
@@ -105,8 +111,8 @@ void on_layer_update(Layer* layer, GContext* ctx) {
     fixed_t minute_hand_radius = safe_radius;
     fixed_t hour_hand_radius = safe_radius - INT_TO_FIXED(22);
 
-    int32_t minute_angle = g_local_time.tm_min * TRIG_MAX_ANGLE / 60.0;
-    int32_t hour_angle = ((g_local_time.tm_hour % 12) + (g_local_time.tm_min / 60.0)) * TRIG_MAX_ANGLE / 12.0;
+    int32_t minute_angle = local_time.tm_min * TRIG_MAX_ANGLE / 60.0;
+    int32_t hour_angle = ((local_time.tm_hour % 12) + (local_time.tm_min / 60.0)) * TRIG_MAX_ANGLE / 12.0;
 
     FContext fctx;
     fctx_init_context(&fctx, ctx);
@@ -126,7 +132,7 @@ void on_layer_update(Layer* layer, GContext* ctx) {
     FPoint anchor_point = clockToCartesian(center, minute_hand_radius - (2 * hand_size), minute_angle);
     int32_t text_rotation;
     GTextAlignment text_align;
-    if (g_local_time.tm_min < 30) {
+    if (local_time.tm_min < 30) {
         text_rotation = minute_angle - TRIG_MAX_ANGLE / 4;
         text_align = GTextAlignmentRight;
     } else {
@@ -134,20 +140,23 @@ void on_layer_update(Layer* layer, GContext* ctx) {
         text_align = GTextAlignmentLeft;
     }
 
+    format_minute_text(text_buffer, &local_time);
     fctx_begin_fill(&fctx);
     fctx_set_fill_color(&fctx, settings.MinuteTextColor);
     fctx_set_offset(&fctx, anchor_point);
     fctx_set_rotation(&fctx, text_rotation);
     fctx_set_text_em_height(&fctx, g_font, TEXT_SIZE);
-    fctx_draw_string(&fctx, minute_hand_string, g_font, text_align, FTextAnchorMiddle);
+    fctx_draw_string(&fctx, text_buffer, g_font, text_align, FTextAnchorMiddle);
     fctx_end_fill(&fctx);
 
     /* Draw the string onto the hour hand. */
     // APP_LOG(APP_LOG_LEVEL_DEBUG, "hour: %d, minute: %d, diff: %d, diff check: %d", hour_angle, minute_angle, angle_diff(hour_angle, minute_angle), DEG_TO_TRIGANGLE(40));
 
+    fctx_deinit_context(&fctx);
+
     if (angle_diff(hour_angle, minute_angle) > DEG_TO_TRIGANGLE(40) ) {
         anchor_point = clockToCartesian(center, hour_hand_radius - (2 * hand_size), hour_angle);
-        if ((g_local_time.tm_hour % 12) < 6) {
+        if ((local_time.tm_hour % 12) < 6) {
             text_rotation = hour_angle - TRIG_MAX_ANGLE / 4;
             text_align = GTextAlignmentRight;
         } else {
@@ -155,16 +164,15 @@ void on_layer_update(Layer* layer, GContext* ctx) {
             text_align = GTextAlignmentLeft;
         }
 
+        format_hour_text(text_buffer, &local_time);
         fctx_begin_fill(&fctx);
         fctx_set_fill_color(&fctx, settings.MinuteTextColor);
         fctx_set_offset(&fctx, anchor_point);
         fctx_set_rotation(&fctx, text_rotation);
         fctx_set_text_em_height(&fctx, g_font, TEXT_SIZE);
-        fctx_draw_string(&fctx, hour_hand_string, g_font, text_align, FTextAnchorMiddle);
+        fctx_draw_string(&fctx, text_buffer, g_font, text_align, FTextAnchorMiddle);
         fctx_end_fill(&fctx);
     }
-
-    fctx_deinit_context(&fctx);
 }
 
 // --------------------------------------------------------------------------
@@ -172,8 +180,6 @@ void on_layer_update(Layer* layer, GContext* ctx) {
 // --------------------------------------------------------------------------
 
 void on_tick_timer(struct tm* tick_time, TimeUnits units_changed) {
-    g_local_time = *tick_time;
-    update_time();
     layer_mark_dirty(g_layer);
 }
 
@@ -199,8 +205,6 @@ static void init() {
     layer_set_update_proc(g_layer, &on_layer_update);
     layer_add_child(window_layer, g_layer);
 
-    time_t now = time(NULL);
-    g_local_time = *localtime(&now);
 
     tick_timer_service_subscribe(MINUTE_UNIT, &on_tick_timer);
 }

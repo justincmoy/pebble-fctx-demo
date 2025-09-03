@@ -3,7 +3,7 @@
 
 #define PERSIST_KEY_SETTINGS 5
 
-typedef struct ClaySettings {
+typedef struct __attribute__((packed)) ClaySettings {
     GColor FaceColor;
     GColor MinuteHandColor;
     GColor MinuteTextColor;
